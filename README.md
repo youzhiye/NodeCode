@@ -4,9 +4,10 @@
 
 * 自动识别404页面
 * 支持使用正则过滤404页面
-* 支持对字典的黑/白名单过滤
+* 支持对字典中的条目后缀进行黑/白名单过滤（只扫描html或者不扫描.bak）
 * 从字典的指定位置继续扫描
 * 指定时间间隔发送请求
+* 自动将扫描结果保存到文本文件
 
 #### ToDo
 
@@ -21,12 +22,12 @@ Usage: wwwscan [options]
 Options:
   -V, --version               output the version number
   -H, --HostorDomain <host>   domain or host
-  -T, --time <number>         the sprit sleep time
+  -T, --time <number>         the script sleep time
   -D, --dict <string>         the dict you select
-  -C, --continueNum [mnmber]  from continue number to scan
-  -B, --blacklist <list>      blacklist
+  -C, --continueNum [mnmber]  select continue number to scan
+  -B, --blacklist <list>      利用黑名单过滤字典中的后缀（应对waf）
   -N, --notfound <string>     404 regx
-  -O, --only <string>         only scan type
+  -O, --only <string>         利用白名单过滤字典中的后缀（应对waf）
   -h, --help                  output usage information
 ```
 
