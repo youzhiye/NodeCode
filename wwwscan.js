@@ -5,6 +5,7 @@ const http = require('http');
 const ora = require('ora');
 const process = require('process');
 const colors = require('colors');
+const https = require('https');
 var crypto = require('crypto');
 
 //定义命令行参数
@@ -21,13 +22,20 @@ program
 
 //定义变量
 var num = 1;
+var reg = '';
+var hash = '';
 var shortUrl = [];
 var newArray = [];
-var host = program.HostorDomain;  
-var time = program.time;
+var ArrayElement = '';
 var dict = program.dict;
+var time = program.time || 20;
+var host = program.HostorDomain;
+var historyFile = 'history/'+host.split('/')[2]+'.txt';
+var whatHttp = inputHost(program.HostorDomain);
 var notfound = program.notfound || '1qwrt2add3zxv4vfr';
 var spinner = ora({text:'start scanning...',spinner:'dots',interval:100}).start();
+
+fileCreate();
 
 //设置延时
 var sleep = (time) => {
@@ -46,7 +54,7 @@ const rl = readline.createInterface({
 
 //将path存入数组
 rl.on('line',(line) => {
-    shortUrl.push(line);
+    shortUrl.push(line.toString());
 }).on('close',()=>{
     if(program.continueNum){
         let start = program.continueNum;
@@ -60,8 +68,9 @@ rl.on('line',(line) => {
 			if(!blackArrary.includes(ext.join())){
 				newArray.push(i);
 			}
-		}
-		gethash(newArray);
+        }
+        ArrayElement = newArray;
+		gethash();
 	}
 	else if(program.only){
 		let onlyArrary = program.only;
@@ -70,38 +79,27 @@ rl.on('line',(line) => {
 			if(onlyArrary.includes(ext.join())){
 				newArray.push(i);
 			}
-		}
-		gethash(newArray);
+        }
+        ArrayElement = newArray;
+		gethash();
 	}
-    else gethash(shortUrl);
+    else {
+        ArrayElement = shortUrl;
+        gethash();
+    }
 })
 
 //get请求，获取状态码
-async function wwwscan(shorturl,hash){
+async function wwwscan(shorturl){
 	var total = shorturl.length;
-	var reg = new RegExp(notfound);
+	reg = new RegExp(notfound);
     for(let i of shorturl){
 		var url = host+i;
         spinner.start(`第${num}/${total}条 `+url);
-        let test = http.get(url,(res)=>{
-			var data1 = '';
-            res.on('data',(data)=>{
-				data1 = data1 + data;
-			});
-			res.on('end',()=>{
-                let md5hash = crypto.createHash('md5').update(data1).digest('hex');
-                if(md5hash != hash){
-                    if(!data1.toString().match(reg)){
-                        if(res.statusCode<404){
-                            if (res.statusCode == 200)spinner.succeed(num+' '+res.req.agent.protocol+'//'+res.req.getHeaders().host+res.req.path+colors.green('\t [200]'));
-                            else if(res.statusCode == 403) spinner.info(res.req.agent.protocol+'//'+res.req.getHeaders().host+res.req.path+colors.green('\t [403]'));
-                            //else if(res.statusCode == 400) spinner.info(domain+res.req.path.replace('/','')+colors.green('\t [400]'));
-                            else if(res.statusCode ==301) spinner.warn(res.req.agent.protocol+'//'+res.req.getHeaders().host+res.req.path+colors.green(`\t [${res.statusCode}]`));
-                        }
-                    }
-                }
-            })
-        })
+        if(whatHttp)
+        var test = https.get(url,AllRequest);
+        else
+        var test = http.get(url,AllRequest);
         test.on('error',(e)=>{
             spinner.fail(`第${num}条 `+url+'\t  '+colors.red(e.message));
         })
@@ -111,15 +109,73 @@ async function wwwscan(shorturl,hash){
     spinner.stop();
     console.log('done');
 }
-function gethash(ArrayElement){
-    let hash = http.get(host+'qwertyuiopsdfghjkzxcvbnm',(res)=>{
-        let Adata = '';
+function gethash(){
+    if(whatHttp){
+    https.get(host+'qwertyuiopsdfghjkzxcvbnm',firstRequest);}
+    else{
+    http.get(host+'qwertyuiopsdfghjkzxcvbnm',firstRequest);}
+}
+function inputHost(host){
+    if(host.slice(0,5) == 'https'){
+        return true
+    }
+    else if(host.slice(0,4) == 'http'){
+        return false
+    }
+    else{
+        process.exit(0);
+    }
+}
+function firstRequest(res){
+    //console.log(res);
+    let Adata = '';
         res.on('data',(data)=>{
             Adata += data;
         })
         res.on('end',()=>{
-            let md5hash = crypto.createHash('md5').update(Adata).digest('hex');
-            wwwscan(ArrayElement,md5hash);
+            hash = crypto.createHash('md5').update(Adata).digest('hex');
+            wwwscan(ArrayElement);
         })
+}
+function AllRequest(res){
+    var data1 = '';
+    res.on('data', (data) => {
+        data1 = data1 + data;
+    });
+    res.on('end', () => {
+        let md5hash = crypto.createHash('md5').update(data1).digest('hex');
+        if (md5hash != hash) {
+            if (!data1.toString().match(reg)) {
+                if (res.statusCode < 404) {
+                    if (res.statusCode == 200){
+                        let tips = res.req.agent.protocol + '//' + res.req.getHeaders().host + res.req.path + colors.green('\t [200]');
+                        let tipsToFile = res.req.agent.protocol + '//' + res.req.getHeaders().host + res.req.path + '\t [200]' + '\n';
+                        spinner.succeed(tips);
+                        fileWrite(tipsToFile);
+                    } 
+                    else if (res.statusCode == 403){
+                        let tips = res.req.agent.protocol + '//' + res.req.getHeaders().host + res.req.path + colors.green('\t [403]');
+                        let tipsToFile = res.req.agent.protocol + '//' + res.req.getHeaders().host + res.req.path + '\t [403]' + '\n';
+                        spinner.info(tips);
+                        fileWrite(tipsToFile);
+                    } 
+                    else if (res.statusCode == 301|| res.statusCode == 302 || res.statusCode != 400){
+                        let tips = res.req.agent.protocol + '//' + res.req.getHeaders().host + res.req.path + colors.green(`\t [${res.statusCode}]`);
+                        let tipsToFile = res.req.agent.protocol + '//' + res.req.getHeaders().host + res.req.path + `\t [${res.statusCode}]` + '\n';
+                        spinner.warn(tips);
+                        fileWrite(tipsToFile);
+                    } 
+                }
+            }
+        }
     })
+}
+
+function fileCreate(){
+    if(!fs.existsSync(historyFile))    fs.writeFileSync(historyFile,new Date().toLocaleString()+'\n');
+    else    fs.appendFileSync(historyFile,'\n\n'+new Date().toLocaleString()+'\n')
+}
+
+function fileWrite(data){
+    fs.appendFileSync(historyFile,data);
 }
