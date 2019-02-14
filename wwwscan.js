@@ -1,5 +1,6 @@
 const program = require('commander');
 const fs = require('fs');
+const urlmoudle = require('url');
 const readline = require('readline');
 const http = require('http');
 const ora = require('ora');
@@ -94,7 +95,7 @@ async function wwwscan(shorturl){
 	var total = shorturl.length;
 	reg = new RegExp(notfound);
     for(let i of shorturl){
-		var url = host+i;
+		var url = new URL(i,host);//host+i;
         spinner.start(`第${num}/${total}条 `+url);
         if(whatHttp)
         var test = https.get(url,AllRequest);
